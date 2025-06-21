@@ -4,7 +4,12 @@
 	import Footer from '$lib/components/Footer.svelte';
 </script>
 
-<Header />
-<About />
-<div class="pb-60"></div>
-<Footer />
+<div class="flex h-screen flex-col">
+	<Header />
+
+	<main class="flex-1 overflow-hidden">
+		<About />
+	</main>
+
+	<Footer />
+</div>
