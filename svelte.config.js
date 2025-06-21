@@ -8,6 +8,9 @@ const config = {
 		adapter: adapter(),
 		alias: {
 			'$lib/*': './src/lib/*'
+		},
+		csrf: {
+			checkOrigin: false
 		}
 	},
 	extensions: ['.svelte', '.svx']
