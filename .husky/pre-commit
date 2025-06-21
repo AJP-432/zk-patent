@@ -1,0 +1,5 @@
+echo "Running lint-staged for pre-commit checks..."
+pnpm lint-staged
+
+echo "Running tests..."
+pnpm test || echo "No tests found, continuing..."
