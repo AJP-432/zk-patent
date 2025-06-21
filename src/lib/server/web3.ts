@@ -586,8 +586,21 @@ export async function mintPatentNft(ownerAddress: string, ideaHash: string) {
 		if (!receipt) {
 			throw new Error('Transaction failed to be mined.');
 		}
-		console.log('Transaction successful with hash:', receipt.hash);
-		return receipt;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const transferEvent = receipt.logs.find((log: any) => {
+			// The Transfer event signature from ERC721 is Transfer(address,address,uint256)
+			// It has 4 topics when all arguments are indexed (event signature, from, to, tokenId)
+			return log.topics.length === 4 && log.address === contractAddress;
+		});
+
+		if (!transferEvent) {
+			throw new Error('Transfer event not found in transaction receipt.');
+		}
+
+		const tokenId = BigInt(transferEvent.topics[3]).toString();
+		console.log(`Successfully minted NFT with Token ID: ${tokenId}`);
+
+		return { receipt, tokenId };
 	} catch (error) {
 		console.error('Error minting NFT:', error);
 		throw new Error('Failed to mint NFT.');

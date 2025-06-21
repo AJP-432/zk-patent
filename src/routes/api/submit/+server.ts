@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { extractText } from '$lib/server/documentExtract';
 import { summarizeIdea } from '$lib/server/llmSummarize';
 import { hashIdea, mintPatentNft } from '$lib/server/web3';
+import { env } from '$env/dynamic/private';
 
 export async function POST({ request }) {
 	try {
@@ -26,14 +27,17 @@ export async function POST({ request }) {
 		console.log('Idea hash:', ideaHash);
 
 		// 4. Mint the NFT with the hash
-		const mintReceipt = await mintPatentNft(ownerAddress, ideaHash);
-		console.log('Mint receipt:', mintReceipt);
+		const { receipt, tokenId } = await mintPatentNft(ownerAddress, ideaHash);
+		console.log('Mint receipt:', receipt);
 
+		// 4. Return the result
 		return json({
 			success: true,
 			idea: coreIdea,
-			ideaHash: ideaHash,
-			transactionHash: mintReceipt.hash
+			ideaHash,
+			transactionHash: receipt.hash,
+			tokenId: tokenId,
+			contractAddress: env.PATENT_NFT_CONTRACT_ADDRESS
 		});
 	} catch (error) {
 		console.error(error);

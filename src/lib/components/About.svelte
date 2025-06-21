@@ -6,8 +6,19 @@
 
 	let loading = $state(false);
 	let userAddress = $state<string | null>(null);
-	let statusMessage = $state('');
+
+	// New state variables to hold structured success/error data
+	let transactionHash = $state<string | null>(null);
+	let tokenId = $state<string | null>(null);
+	let contractAddress = $state<string | null>(null);
+
+	let statusMessage = $state(''); // For general loading/processing messages
 	let errorMessage = $state('');
+
+	// Derived state for easy checks
+	const hasSuccessData = $derived(
+		transactionHash !== null && tokenId !== null && contractAddress !== null
+	);
 
 	async function connectWallet() {
 		errorMessage = '';
@@ -19,6 +30,7 @@
 				const provider = new ethers.BrowserProvider((window as any).ethereum);
 				const accounts = await provider.send('eth_requestAccounts', []);
 				userAddress = accounts[0];
+				console.log('Frontend wallet connected (NFT Recipient):', userAddress);
 			} catch (error) {
 				errorMessage = 'Failed to connect wallet.';
 				console.error(error);
@@ -37,6 +49,10 @@
 		loading = true;
 		statusMessage = 'Processing... This may take a moment.';
 		errorMessage = '';
+		// Clear previous success data
+		transactionHash = null;
+		tokenId = null;
+		contractAddress = null;
 
 		const formData = new FormData();
 		formData.append('patent_document', file);
@@ -51,7 +67,12 @@
 			const result = await response.json();
 
 			if (response.ok) {
-				statusMessage = `Success! NFT minted. Transaction: ${result.transactionHash}. Idea: "${result.idea}"`;
+				// Assign results to new state variables
+				transactionHash = result.transactionHash;
+				tokenId = result.tokenId;
+				contractAddress = result.contractAddress;
+				statusMessage = ''; // Clear general status message if success data is set
+
 				console.log('API Success:', result);
 			} else {
 				errorMessage = `Error: ${result.error}`;
@@ -68,9 +89,7 @@
 
 <section id="about" class="flex items-center justify-center p-8 pt-28">
 	<div class="mx-auto w-full max-w-6xl">
-		<!-- Desktop: Side by side layout -->
 		<div class="hidden md:grid md:grid-cols-2 md:items-center md:gap-12">
-			<!-- Left: Glass card with content -->
 			<div
 				class="bg-background/20 h-80 rounded-2xl border border-white/10 p-8 shadow-2xl backdrop-blur-md"
 			>
@@ -81,7 +100,6 @@
 				</div>
 			</div>
 
-			<!-- Right: File Dropbox -->
 			<div class="flex items-center justify-center">
 				<div
 					class="bg-background/10 flex h-80 w-full flex-col items-center justify-center rounded-2xl backdrop-blur-sm"
@@ -99,17 +117,36 @@
 						/>
 					{/if}
 
-					{#if statusMessage}
-						<p class="mt-4 text-sm text-green-400">{statusMessage}</p>
+					{#if statusMessage && !loading}
+						<div class="mt-4 text-left text-sm text-green-400">{statusMessage}</div>
+					{/if}
+					{#if loading && statusMessage}
+						<div class="mt-4 text-left text-sm text-green-400">{statusMessage}</div>
 					{/if}
 					{#if errorMessage}
 						<p class="mt-4 text-sm text-red-400">{errorMessage}</p>
+					{/if}
+
+					{#if hasSuccessData}
+						<div class="mt-4 text-left text-sm text-green-400">
+							<p class="font-bold">Success! NFT (ID: {tokenId}) minted.</p>
+							<a
+								href={`https://sepolia.etherscan.io/tx/${transactionHash}`}
+								target="_blank"
+								rel="noopener noreferrer"
+								class="text-blue-400 hover:underline">View Transaction on Etherscan</a
+							>
+							<div class="mt-2 border-t border-white/20 pt-2">
+								<p class="font-semibold">To add to your wallet:</p>
+								<p>Contract: <span class="font-mono text-xs break-all">{contractAddress}</span></p>
+								<p>Token ID: <span class="font-mono">{tokenId}</span></p>
+							</div>
+						</div>
 					{/if}
 				</div>
 			</div>
 		</div>
 
-		<!-- Mobile: Stacked layout (no 3D object) -->
 		<div class="md:hidden">
 			<div
 				class="bg-background/20 rounded-2xl border border-white/10 p-6 shadow-2xl backdrop-blur-md"
@@ -132,11 +169,33 @@
 							/>
 						{/if}
 
-						{#if statusMessage}
-							<p class="mt-4 text-center text-sm text-green-400">{statusMessage}</p>
+						{#if statusMessage && !loading}
+							<div class="mt-4 text-center text-sm text-green-400">{statusMessage}</div>
+						{/if}
+						{#if loading && statusMessage}
+							<div class="mt-4 text-center text-sm text-green-400">{statusMessage}</div>
 						{/if}
 						{#if errorMessage}
 							<p class="mt-4 text-center text-sm text-red-400">{errorMessage}</p>
+						{/if}
+
+						{#if hasSuccessData}
+							<div class="mt-4 text-center text-sm text-green-400">
+								<p class="font-bold">Success! NFT (ID: {tokenId}) minted.</p>
+								<a
+									href={`https://sepolia.etherscan.io/tx/${transactionHash}`}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="text-blue-400 hover:underline">View Transaction on Etherscan</a
+								>
+								<div class="mt-2 border-t border-white/20 pt-2">
+									<p class="font-semibold">To add to your wallet:</p>
+									<p>
+										Contract: <span class="font-mono text-xs break-all">{contractAddress}</span>
+									</p>
+									<p>Token ID: <span class="font-mono">{tokenId}</span></p>
+								</div>
+							</div>
 						{/if}
 					</div>
 				</div>
