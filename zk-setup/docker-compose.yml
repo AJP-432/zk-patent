@@ -1,0 +1,9 @@
+version: '3.8'
+services:
+  zk-tools:
+    build:
+      # Build in parent so we can access package-lock.json
+      context: ..
+      dockerfile: Dockerfile
+    volumes:
+      - ../:/app

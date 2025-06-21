@@ -21,3 +21,7 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Circom/SnarkJS build artifacts
+# General build output directory
+zk/build/
