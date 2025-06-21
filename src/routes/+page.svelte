@@ -1,5 +1,7 @@
 <script lang="ts">
-	import ThemeButton from '$lib/components/ui/ThemeButton.svelte';
+	import About from '$lib/components/About.svelte';
+	import Header from '$lib/components/Header.svelte';
 </script>
 
-<ThemeButton />
+<Header />
+<About />
