@@ -1,6 +1,7 @@
 <script lang="ts">
 	// @ts-expect-error import about.svx not found, despite being in the project
 	import AboutContent from '$lib/content/about.svx';
+	import FileDropBox from './FileDropBox.svelte';
 </script>
 
 <section id="about" class="flex items-center justify-center p-8 pt-28">
@@ -21,9 +22,9 @@
 			<!-- Right: File Dropbox -->
 			<div class="flex items-center justify-center">
 				<div
-					class="bg-background/10 flex h-80 w-full items-center justify-center rounded-2xl border border-white/5 backdrop-blur-sm"
+					class="bg-background/10 flex h-80 w-full items-center justify-center rounded-2xl backdrop-blur-sm"
 				>
-					<span class="text-muted-foreground">3D Object Placeholder</span>
+					<FileDropBox />
 				</div>
 			</div>
 		</div>

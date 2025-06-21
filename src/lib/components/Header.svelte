@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 
 	let text1 = 'zk-patent';
-	let text2 = 'The Future of Idea Protection.';
+	let text2 = 'The Future of Idea Protection';
 	let displayedText = '';
 	let index = 0;
 	let currentText = text1; // Start with the first phrase
