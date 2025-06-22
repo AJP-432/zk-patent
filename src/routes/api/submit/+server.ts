@@ -1,12 +1,12 @@
 import { json } from '@sveltejs/kit';
-// import { extractText } from '$lib/server/documentExtract';
-// import { summarizeIdea } from '$lib/server/llmSummarize';
+import { extractText } from '$lib/server/documentExtract';
+import { summarizeIdea } from '$lib/server/llmSummarize';
 import {
 	mintPatentNftWithProof,
 	checkIfHashExists,
 	invalidateCaches,
 	printCaches
-} from '$lib/server/web3'; // <-- Import the new function
+} from '$lib/server/web3';
 import { generateProof, generateCalldata } from '$lib/server/zk';
 import { env } from '$env/dynamic/private';
 
@@ -21,19 +21,18 @@ export async function POST({ request }) {
 		}
 
 		// 1. Extract text and summarize
-		// const rawText = await extractText(file);
-		// const coreIdea = await summarizeIdea(rawText);
+		const rawText = await extractText(file);
+		const coreIdea = await summarizeIdea(rawText);
 		// Mock: for testing purposes, let's use a hardcoded idea
-		const rawText = 'Salty icecream';
-		const coreIdea = rawText;
+		// const rawText = 'Salty icecream';
+		// const coreIdea = rawText;
 		console.log('Core idea:', coreIdea);
 
 		// 2. Generate ZK proof and calldata
 		const { proof, publicSignals } = await generateProof(coreIdea);
 		const calldata = await generateCalldata(proof, publicSignals);
 
-		// 3. NEW: Check if this idea (its hash) already exists on-chain
-		// We use calldata.input because it contains the public signals (the hash).
+		// 3. Check if this idea (its hash) already exists on-chain
 		console.log('Calldata input:', calldata.input);
 		console.log('Checking if this idea already exists on-chain...');
 		printCaches();
@@ -41,7 +40,7 @@ export async function POST({ request }) {
 		if (alreadyExists) {
 			return json(
 				{ error: 'This exact idea has already been timestamped. A proof of prior art exists.' },
-				{ status: 409 } // 409 Conflict is a fitting HTTP status code
+				{ status: 409 }
 			);
 		}
 

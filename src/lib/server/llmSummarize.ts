@@ -17,5 +17,6 @@ export async function summarizeIdea(text: string): Promise<string> {
 
 	const result = await model.generateContent(prompt);
 	const response = result.response;
+
 	return response.text();
 }

@@ -4,7 +4,7 @@ import { groth16 } from 'snarkjs';
 import { utils as ffUtils } from 'ffjavascript';
 import path from 'path';
 
-// Correctly locate the circuit artifacts in a Vercel environment.
+// Correctly locate the circuit artifacts in a Vercel environment
 const wasmPath = path.join(
 	process.cwd(),
 	'circuits',
