@@ -1,7 +1,12 @@
 import { json } from '@sveltejs/kit';
-import { extractText } from '$lib/server/documentExtract';
-import { summarizeIdea } from '$lib/server/llmSummarize';
-import { mintPatentNftWithProof } from '$lib/server/web3';
+// import { extractText } from '$lib/server/documentExtract';
+// import { summarizeIdea } from '$lib/server/llmSummarize';
+import {
+	mintPatentNftWithProof,
+	checkIfHashExists,
+	invalidateCaches,
+	printCaches
+} from '$lib/server/web3'; // <-- Import the new function
 import { generateProof, generateCalldata } from '$lib/server/zk';
 import { env } from '$env/dynamic/private';
 
@@ -15,28 +20,40 @@ export async function POST({ request }) {
 			return json({ error: 'No file uploaded or owner address provided.' }, { status: 400 });
 		}
 
-		// 1. Extract text from document
-		const rawText = await extractText(file);
-		console.log('Extracted text:', rawText.substring(0, 100) + '...');
-
-		// 2. Summarize the core idea (LLM processing)
-		const coreIdea = await summarizeIdea(rawText);
+		// 1. Extract text and summarize
+		// const rawText = await extractText(file);
+		// const coreIdea = await summarizeIdea(rawText);
+		// Mock: for testing purposes, let's use a hardcoded idea
+		const rawText = 'Salty icecream';
+		const coreIdea = rawText;
 		console.log('Core idea:', coreIdea);
 
-		// 3. Generate ZK proof for the core idea
+		// 2. Generate ZK proof and calldata
 		const { proof, publicSignals } = await generateProof(coreIdea);
-
-		// 4. Format proof for smart contract call
 		const calldata = await generateCalldata(proof, publicSignals);
 
-		// 5. Mint the NFT with the proof
+		// 3. NEW: Check if this idea (its hash) already exists on-chain
+		// We use calldata.input because it contains the public signals (the hash).
+		console.log('Calldata input:', calldata.input);
+		console.log('Checking if this idea already exists on-chain...');
+		printCaches();
+		const alreadyExists = await checkIfHashExists(calldata.input);
+		if (alreadyExists) {
+			return json(
+				{ error: 'This exact idea has already been timestamped. A proof of prior art exists.' },
+				{ status: 409 } // 409 Conflict is a fitting HTTP status code
+			);
+		}
+
+		// 4. If it's new, mint the NFT with the proof
 		const { receipt, tokenId } = await mintPatentNftWithProof(ownerAddress, calldata);
 		console.log('Mint receipt hash:', receipt.hash);
+		invalidateCaches();
 
-		// 6. Return the result
+		// 5. Return the result
 		return json({
 			success: true,
-			idea: coreIdea, // For display only, not stored on-chain
+			idea: coreIdea,
 			transactionHash: receipt.hash,
 			tokenId: tokenId,
 			contractAddress: env.PATENT_NFT_CONTRACT_ADDRESS

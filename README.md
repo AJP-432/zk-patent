@@ -36,6 +36,63 @@ You can prove you had the idea at a specific time, without ever putting the idea
 
 ---
 
+## Zero-Knowledge Circuit Setup
+
+This project relies on pre-compiled ZK-SNARK artifacts: a prover key (`.zkey`), a WebAssembly circuit (`.wasm`), and a Solidity verifier contract (`Verifier.sol`). Here is the high-level process used to generate them.
+
+### 1. Write the Circuit
+
+The core of the ZK logic is in `circuits/circuit.circom`. This circuit takes a private input (the `preimage` of the idea), computes its Poseidon hash, and exposes the resulting hash as a public output. This allows us to prove we know the `preimage` for a given public hash without revealing it.
+
+### 2. Compile the Circuit
+
+First, compile the `.circom` file. This generates the R1CS (Rank-1 Constraint System) file, which is a mathematical representation of the circuit, and the `.wasm` file used for generating proofs.
+
+```bash
+# Create a directory for the output files
+mkdir -p circuits/compiled
+
+# Compile the circuit
+circom circuits/circuit.circom --r1cs --wasm --sym -o circuits/compiled
+```
+
+### 3. Powers of Tau Ceremony (Phase 1)
+
+To create a secure ZK-SNARK, we start with a "Powers of Tau" file from a trusted public ceremony. This is a universal setup that can be used for any circuit up to a certain size. We'll use a file that supports up to 2^20 constraints, which is more than sufficient.
+
+```bash
+# Download the .ptau file
+curl -o circuits/powers_of_tau_28_hez_final_20.ptau https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_20.ptau
+```
+
+### 4. Generate the ZKey (Phase 2)
+
+Next, we use `snarkjs` to create the initial prover key (`.zkey`) for our specific circuit using the `.ptau` file.
+
+```bash
+snarkjs groth16 setup circuits/compiled/circuit.r1cs circuits/powers_of_tau_28_hez_final_20.ptau circuits/compiled/circuit_0000.zkey
+```
+
+### 5. Contribute to the ZKey
+
+For a production system, this `.zkey` would need multiple contributions from different parties to be secure. For this project, a single contribution is sufficient to finalize the key.
+
+```bash
+snarkjs zkey contribute circuits/compiled/circuit_0000.zkey circuits/compiled/circuit_final.zkey --name="zk-patent 1st contribution" -v -e="some random text for entropy"
+```
+
+### 6. Export the Verifier Contract
+
+Finally, we export the verifier from our final `.zkey`. This generates a Solidity smart contract (`Verifier.sol`) that can verify proofs on-chain.
+
+```bash
+snarkjs zkey export solidityverifier circuits/compiled/circuit_final.zkey contracts/Verifier.sol
+```
+
+The generated `Verifier.sol` is then deployed, and its address is passed to the constructor of the main `PatentNFT.sol` contract. The `circuit_final.zkey` and `circuit.wasm` files are placed in `src/lib/server/zk/` for the backend to use when generating proofs.
+
+---
+
 ## Tech Stack
 
 - **Frontend**: SvelteKit, Tailwind CSS

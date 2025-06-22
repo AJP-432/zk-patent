@@ -3,6 +3,7 @@
 	import AboutContent from '$lib/content/about.svx';
 	import FileDropBox from './FileDropBox.svelte';
 	import { ethers } from 'ethers';
+	import { refreshSignal } from '$lib/stores';
 
 	let loading = $state(false);
 	let userAddress = $state<string | null>(null);
@@ -72,6 +73,9 @@
 				tokenId = result.tokenId;
 				contractAddress = result.contractAddress;
 				statusMessage = ''; // Clear general status message if success data is set
+
+				// Trigger a refresh of the mint logs
+				refreshSignal.update((n) => n + 1);
 
 				console.log('API Success:', result);
 			} else {

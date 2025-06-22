@@ -58,6 +58,7 @@ export async function generateProof(coreIdea: string) {
 	console.log('[ZK] Proof generated successfully.');
 	console.log(
 		'[ZK] Public Signals (Hash):',
+		// @ts-expect-error ffUtils.stringifyBigInts
 		publicSignals.map((s) => s.toString())
 	);
 

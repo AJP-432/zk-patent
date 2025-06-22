@@ -359,3 +359,167 @@ export async function mintPatentNftWithProof(
 		throw new Error('Failed to mint NFT with proof.');
 	}
 }
+
+// --- In-Memory Caches ---
+// A Set for instant hash lookups, populated on the first check.
+let ideaHashesCache: Set<string> | null = null;
+// An array to cache the list of patents for the UI, populated on the first load.
+let recentPatentsCache:
+	| { tokenId: string; transactionHash: string; blockNumber: number; minter: string }[]
+	| null = null;
+
+/**
+ * Helper function to perform a one-time scan of the blockchain for all IdeaProven events.
+// ...existing code...
+    return exists;
+}
+
+/**
+ * Fetches all minted patents by querying for Transfer events from the zero address.
+ * This function uses an in-memory cache to avoid re-scanning the blockchain on every call.
+ * @returns An array of patent objects, sorted from most recent to oldest.
+ */
+export async function getRecentPatents(): Promise<
+	{ tokenId: string; transactionHash: string; blockNumber: number; minter: string }[]
+> {
+	// If the cache is already populated, return it instantly.
+	if (recentPatentsCache !== null) {
+		console.log('[CACHE] Returning cached patent list.');
+		return recentPatentsCache;
+	}
+
+	try {
+		// Keccak256 hash of "Transfer(address,address,uint256)"
+		const transferTopic = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+		const zeroAddressPadded = ethers.zeroPadValue('0x0000000000000000000000000000000000000000', 32);
+		console.log('[WEB3] Cache empty. Fetching all mint (Transfer) event logs from blockchain...');
+
+		const latestBlock = await provider.getBlockNumber();
+		const genesisBlock = parseInt(env.CONTRACT_GENESIS_BLOCK || '0', 10);
+
+		// For a hackathon with few NFTs, we can query the whole range at once.
+		const logs = await provider.getLogs({
+			address: contractAddress,
+			topics: [
+				transferTopic,
+				zeroAddressPadded // Filter for mints (from address is 0x0)
+			],
+			fromBlock: genesisBlock,
+			toBlock: latestBlock
+		});
+
+		const allPatents: {
+			tokenId: string;
+			transactionHash: string;
+			blockNumber: number;
+			minter: string;
+		}[] = [];
+
+		for (const log of logs) {
+			const minter = ethers.AbiCoder.defaultAbiCoder().decode(['address'], log.topics[2])[0];
+			const tokenId = ethers.AbiCoder.defaultAbiCoder().decode(['uint256'], log.topics[3])[0];
+
+			allPatents.push({
+				tokenId: tokenId.toString(),
+				transactionHash: log.transactionHash,
+				blockNumber: log.blockNumber,
+				minter: minter
+			});
+		}
+
+		// Sort by block number descending (most recent first)
+		allPatents.sort((a, b) => b.blockNumber - a.blockNumber);
+
+		console.log(`[CACHE] Populating patent cache with ${allPatents.length} total mint events.`);
+		// Store the result in the cache for next time.
+		recentPatentsCache = allPatents;
+		return recentPatentsCache;
+	} catch (error) {
+		console.error('[WEB3] Error fetching recent patents:', error);
+		throw new Error('Failed to fetch recent patents from the blockchain.');
+	}
+}
+
+/**
+ * Helper function to perform a one-time scan of the blockchain for all IdeaProven events.
+ * This populates our in-memory cache for fast, subsequent lookups.
+ */
+async function populateHashCache() {
+	console.log('[CACHE] Populating idea hash cache from the blockchain...');
+	// The unique signature for our contract's IdeaProven(uint256,uint256[2]) event
+	const ideaProvenTopic = '0xba13f36d88fe55de914440d6c6bc4c5b4b4fe752b6f17877c430f626a2298923';
+
+	ideaHashesCache = new Set<string>();
+
+	try {
+		const latestBlock = await provider.getBlockNumber();
+		const genesisBlock = parseInt(env.CONTRACT_GENESIS_BLOCK || '0', 10);
+
+		// For a hackathon with few NFTs, we can query the whole range at once.
+		const logs = await provider.getLogs({
+			address: contractAddress, // Ensures we only get events from OUR contract
+			topics: [ideaProvenTopic],
+			fromBlock: genesisBlock,
+			toBlock: latestBlock
+		});
+
+		for (const log of logs) {
+			// The ideaHash is not indexed, so it's in the 'data' field.
+			const decodedData = ethers.AbiCoder.defaultAbiCoder().decode(['uint256[2]'], log.data);
+			const existingHash: [bigint, bigint] = decodedData[0];
+
+			// Create a unique string representation for the hash to store in the Set.
+			const formattedHash = `${existingHash[0].toString()}-${existingHash[1].toString()}`;
+			ideaHashesCache.add(formattedHash);
+		}
+		console.log(`[CACHE] Cache populated with ${ideaHashesCache.size} unique idea hashes.`);
+	} catch (error) {
+		console.error('[CACHE] Failed to populate idea hash cache:', error);
+		ideaHashesCache = null; // Reset cache on error so the next request can try again.
+		throw new Error('Failed to build cache of existing ideas.');
+	}
+}
+
+/**
+ * Checks if a public hash already exists by looking it up in an in-memory cache.
+ * The cache is populated from the blockchain on the first call.
+ * @param publicSignals The public signals (the hash) from the ZK proof.
+ * @returns A boolean indicating if the hash already exists.
+ */
+export async function checkIfHashExists(publicSignals: string[]): Promise<boolean> {
+	// If the cache hasn't been populated yet, do the one-time scan.
+	if (ideaHashesCache === null) {
+		await populateHashCache();
+	}
+
+	// Convert publicSignals to BigInts and then toString() to ensure consistent formatting
+	const part1 = BigInt(publicSignals[0]).toString();
+	const part2 = BigInt(publicSignals[1]).toString();
+
+	const hashToCheck = `${part1}-${part2}`;
+
+	// The check is now an instant O(1) lookup in the Set.
+	const exists = ideaHashesCache!.has(hashToCheck);
+
+	if (exists) {
+		console.log(`[CACHE] Hash check: FOUND. The idea already exists.`);
+	} else {
+		console.log(`[CACHE] Hash check: NOT FOUND. This is a new idea.`);
+	}
+
+	return exists;
+}
+
+export function invalidateCaches() {
+	console.log('[CACHE] Invalidating caches due to new on-chain data.');
+	ideaHashesCache = null;
+	recentPatentsCache = null;
+}
+
+export function printCaches() {
+	console.log('[CACHE] Current idea hash cache:', ideaHashesCache);
+	console.log('[CACHE] Current recent patents cache:', recentPatentsCache);
+	for (const patent of ideaHashesCache || []) {
+		console.log(`[CACHE] Patent: ${patent}`);
+	}
+}

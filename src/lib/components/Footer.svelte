@@ -8,7 +8,7 @@
 			class="text-muted-foreground flex flex-wrap justify-center gap-x-4 gap-y-2 text-center text-sm"
 		>
 			<span>© {currentYear}</span>
-			<span>Ajlal Paracha and Ehteshaam Paracha</span>
+			<span>Ajlal and Ehteshaam Paracha</span>
 			<span class="hidden sm:inline">•</span>
 			<span>Made with ❤️</span>
 		</div>
