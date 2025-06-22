@@ -1,7 +1,8 @@
 import { json } from '@sveltejs/kit';
 import { extractText } from '$lib/server/documentExtract';
 import { summarizeIdea } from '$lib/server/llmSummarize';
-import { hashIdea, mintPatentNft } from '$lib/server/web3';
+import { mintPatentNftWithProof } from '$lib/server/web3';
+import { generateProof, generateCalldata } from '$lib/server/zk';
 import { env } from '$env/dynamic/private';
 
 export async function POST({ request }) {
@@ -16,25 +17,26 @@ export async function POST({ request }) {
 
 		// 1. Extract text from document
 		const rawText = await extractText(file);
-		console.log('Extracted text:', rawText);
+		console.log('Extracted text:', rawText.substring(0, 100) + '...');
 
 		// 2. Summarize the core idea (LLM processing)
 		const coreIdea = await summarizeIdea(rawText);
 		console.log('Core idea:', coreIdea);
 
-		// 3. Hash the core idea
-		const ideaHash = hashIdea(coreIdea);
-		console.log('Idea hash:', ideaHash);
+		// 3. Generate ZK proof for the core idea
+		const { proof, publicSignals } = await generateProof(coreIdea);
 
-		// 4. Mint the NFT with the hash
-		const { receipt, tokenId } = await mintPatentNft(ownerAddress, ideaHash);
-		console.log('Mint receipt:', receipt);
+		// 4. Format proof for smart contract call
+		const calldata = await generateCalldata(proof, publicSignals);
 
-		// 4. Return the result
+		// 5. Mint the NFT with the proof
+		const { receipt, tokenId } = await mintPatentNftWithProof(ownerAddress, calldata);
+		console.log('Mint receipt hash:', receipt.hash);
+
+		// 6. Return the result
 		return json({
 			success: true,
-			idea: coreIdea,
-			ideaHash,
+			idea: coreIdea, // For display only, not stored on-chain
 			transactionHash: receipt.hash,
 			tokenId: tokenId,
 			contractAddress: env.PATENT_NFT_CONTRACT_ADDRESS

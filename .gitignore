@@ -21,3 +21,18 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# --- ZK Circuit Artifacts ---
+# Ignore temporary setup files
+pot*.ptau
+
+# Ignore intermediate compilation files
+*.r1cs
+*.sym
+
+# CRITICAL: Ignore the proving key. This is a sensitive build artifact.
+*.zkey
+
+# Ignore generated witness calculation scripts
+circuits/build/hash_preimage_js/generate_witness.js
+circuits/build/hash_preimage_js/witness_calculator.js

@@ -9,6 +9,7 @@ export default defineConfig({
 		exclude: ['pdf-parse']
 	},
 	ssr: {
+		noExternal: ['snarkjs', 'ffjavascript'],
 		external: ['pdf-parse']
 	}
 });
